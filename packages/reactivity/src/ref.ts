@@ -1,7 +1,7 @@
 import { hasChanged } from "packages/shared/src/index"
-import { activeEffect, trackEffects, triggerEffect } from "./effect"
+import { activeEffect, trackEffects, triggerEffects } from "./effect"
 import { toReactive } from "./reactive"
-import { createDep } from "./dep"
+import { createDep, Dep } from "./dep"
 
 export function ref (value: unknown) {
     return createRef(value, false)
@@ -44,11 +44,11 @@ export function trackRefValue(ref) {
 
 export function triggerRefValue(ref) {
     if(ref.dep) {
-        triggerEffect(ref.dep)
+        triggerEffects(ref.dep)
     }
 }
 
 // 是否为ref
-export function isRef(r: any): r is Ref {
+export function isRef(r: any): boolean {
     return !!(r && r.__v_isRef === true)
 }

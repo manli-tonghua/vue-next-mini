@@ -1,6 +1,9 @@
 // effect
 
+import { ComputedRefImpl } from "./computed"
 import { createDep, Dep } from "./dep"
+
+export type EffectScheduler = (...args: any[]) => any
 
 type KeyToDepMap = Map<any, Dep>
 const targetMap = new WeakMap<any, KeyToDepMap>()
@@ -12,7 +15,9 @@ export function effect<T = any>(fn: () => T) {
 export let activeEffect: ReactiveEffect | undefined
 
 export class ReactiveEffect<T = any> {
-    constructor(public fn: () => T) {}
+    
+    computed?: ComputedRefImpl<T>
+    constructor(public fn: () => T, public scheduler: EffectScheduler | null = null) {}
     run() {
         activeEffect = this
         return this.fn()
@@ -55,10 +60,25 @@ export function triggerEffects(dep: Dep) {
     const effects = Array.isArray(dep) ? dep : Array.from(dep)
     // 依次触发依赖
     for(const effect of effects) {
-        triggerEffect(effect)
-    }
+            triggerEffect(effect)
+        }
+    // for(const effect of effects) {
+    //    if(effect.computed) {
+    //       triggerEffect(effect)
+    //    }
+    // }
+    // for(const effect of effects) {
+    //     if(!effect.computed) {
+    //         triggerEffect(effect)
+    //     }
+    // }
 }
 // 触发指定依赖
 export function triggerEffect(effect: ReactiveEffect) {
-    effect.run()
+    console.log(effect,'0000')
+    if(effect.scheduler) {
+        effect.scheduler()
+    }else {
+        effect.fn()
+    }
 }

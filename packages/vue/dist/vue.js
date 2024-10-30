@@ -1,6 +1,10 @@
 var Vue = (function (exports) {
     'use strict';
 
+    const isObject = (val) => val !== null && typeof val === 'object';
+    const hasChanged = (value, oldValue) => !Object.is(value, oldValue);
+    const isFunction = (val) => typeof val === 'function';
+
     const createDep = (effects) => {
         const dep = new Set(effects);
         return dep;
@@ -14,8 +18,9 @@ var Vue = (function (exports) {
     }
     let activeEffect;
     class ReactiveEffect {
-        constructor(fn) {
+        constructor(fn, scheduler = null) {
             this.fn = fn;
+            this.scheduler = scheduler;
         }
         run() {
             activeEffect = this;
@@ -60,10 +65,26 @@ var Vue = (function (exports) {
         for (const effect of effects) {
             triggerEffect(effect);
         }
+        // for(const effect of effects) {
+        //    if(effect.computed) {
+        //       triggerEffect(effect)
+        //    }
+        // }
+        // for(const effect of effects) {
+        //     if(!effect.computed) {
+        //         triggerEffect(effect)
+        //     }
+        // }
     }
     // 触发指定依赖
     function triggerEffect(effect) {
-        effect.run();
+        console.log(effect, '0000');
+        if (effect.scheduler) {
+            effect.scheduler();
+        }
+        else {
+            effect.fn();
+        }
     }
 
     const get = createGetter();
@@ -101,9 +122,88 @@ var Vue = (function (exports) {
         proxyMap.set(target, proxy);
         return proxy;
     }
+    const toReactive = (value) => isObject(value) ? reactive(value) : value;
 
+    function ref(value) {
+        return createRef(value, false);
+    }
+    function createRef(rawValue, shallow) {
+        if (isRef(rawValue)) {
+            return rawValue;
+        }
+        return new RefImpl(rawValue, shallow);
+    }
+    class RefImpl {
+        constructor(value, __v_isShallow) {
+            this.__v_isShallow = __v_isShallow;
+            this.dep = undefined;
+            this.__v_isRef = true;
+            this._rawValue = value;
+            this._value = __v_isShallow ? value : toReactive(value);
+        }
+        get value() {
+            trackRefValue(this);
+            return this._value;
+        }
+        set value(newVal) {
+            if (hasChanged(newVal, this._rawValue)) {
+                this._rawValue = newVal;
+                this._value = toReactive(newVal);
+                triggerRefValue(this);
+            }
+        }
+    }
+    function trackRefValue(ref) {
+        if (activeEffect) {
+            trackEffects(ref.dep || (ref.dep = createDep()));
+        }
+    }
+    function triggerRefValue(ref) {
+        if (ref.dep) {
+            triggerEffects(ref.dep);
+        }
+    }
+    // 是否为ref
+    function isRef(r) {
+        return !!(r && r.__v_isRef === true);
+    }
+
+    class ComputedRefImpl {
+        constructor(getter) {
+            this.dep = undefined;
+            this.__v_isRef = true;
+            this._dirty = true;
+            this.effect = new ReactiveEffect(getter, () => {
+                if (!this._dirty) {
+                    this._dirty = true;
+                    triggerRefValue(this);
+                }
+            });
+            this.effect.computed = this;
+        }
+        get value() {
+            trackRefValue(this);
+            if (this._dirty) {
+                this._dirty = false;
+                this._value = this.effect.run();
+            }
+            return this._value;
+        }
+    }
+    function computed(getterOrOptions) {
+        let getter;
+        const onlyGetter = isFunction(getterOrOptions);
+        if (onlyGetter) {
+            getter = getterOrOptions;
+        }
+        const cRef = new ComputedRefImpl(getter);
+        return cRef;
+    }
+
+    exports.computed = computed;
     exports.effect = effect;
     exports.reactive = reactive;
+    exports.ref = ref;
 
     Object.defineProperty(exports, '__esModule', { value: true });
 
