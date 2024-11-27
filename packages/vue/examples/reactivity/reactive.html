@@ -13,8 +13,7 @@
 <script>
     const { reactive, effect }  = Vue
     const obj = reactive({
-        name: 'zhangsan',
-        age: 18
+        name: 'zhangsan'
     })
     effect(() => {
         document.querySelector('#app1').innerHTML = obj.name
@@ -22,6 +21,7 @@
     effect(() => {
         document.querySelector('#app2').innerHTML = obj.name
     })
+    console.log(obj)
     setTimeout(() => {
         obj.name = 'lisi'
     }, 2000);

@@ -17,6 +17,7 @@
     })
     
     const computedObj = computed(() => {
+        console.log('computedObj')
         return '姓名：' + obj.name
     })
     effect(() => {
